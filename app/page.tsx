@@ -95,7 +95,6 @@ export default function KanaQuizApp() {
           {view === "quiz" && (
             <QuizPage
               quizSet={currentQuizSet}
-              config={quizConfig}
               onUpdateSRS={handleUpdateSRS}
               onComplete={(correct, total) => {
                 setQuizResults({ correct, total })
