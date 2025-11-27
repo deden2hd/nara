@@ -1,65 +1,135 @@
-import Image from "next/image";
+"use client"
 
-export default function Home() {
+import { useState } from "react"
+import LandingPage from "@/components/landing-page"
+import CustomizationPage from "@/components/customization-page"
+import QuizPage from "@/components/quiz-page"
+import ReviewPage from "@/components/review-page"
+import QuizCompletePage from "@/components/quiz-complete-page"
+import StrokeOrderModal from "@/components/stroke-order-modal"
+import MobileNav from "@/components/mobile-nav"
+import type { QuizConfig, SRSData, KanaType, QuizItem } from "@/lib/kana-data"
+
+export type AppView = "landing" | "customization" | "quiz" | "review" | "complete"
+
+export default function KanaQuizApp() {
+  const [view, setView] = useState<AppView>("landing")
+  const [quizConfig, setQuizConfig] = useState<QuizConfig>({
+    selectedTypes: ["plain", "tenten"],
+    selectedRows: ["a", "k", "s"],
+    kanaType: "hiragana",
+  })
+  const [srsData, setSrsData] = useState<SRSData>({})
+  const [currentQuizSet, setCurrentQuizSet] = useState<QuizItem[]>([])
+  const [quizResults, setQuizResults] = useState<{ correct: number; total: number }>({ correct: 0, total: 0 })
+  const [isTrainingHard, setIsTrainingHard] = useState(false)
+  const [modalChar, setModalChar] = useState<string | null>(null)
+
+  const handleSelectKanaSet = (type: KanaType) => {
+    setQuizConfig((prev) => ({ ...prev, kanaType: type }))
+    setView("customization")
+  }
+
+  const handleUpdateConfig = (type: "row" | "type", value: string, isChecked: boolean) => {
+    setQuizConfig((prev) => {
+      if (type === "row") {
+        const newRows = isChecked ? [...prev.selectedRows, value] : prev.selectedRows.filter((r) => r !== value)
+        return { ...prev, selectedRows: newRows }
+      } else {
+        const newTypes = isChecked ? [...prev.selectedTypes, value] : prev.selectedTypes.filter((t) => t !== value)
+        return { ...prev, selectedTypes: newTypes }
+      }
+    })
+  }
+
+  const handleUpdateSRS = (char: string, isCorrect: boolean) => {
+    setSrsData((prev) => {
+      const current = prev[char] || { correct: 0, incorrect: 0 }
+      if (isCorrect) {
+        return {
+          ...prev,
+          [char]: {
+            correct: current.correct + 1,
+            incorrect: Math.max(0, current.incorrect - 1),
+            lastReviewed: new Date().toISOString(),
+          },
+        }
+      } else {
+        return {
+          ...prev,
+          [char]: {
+            correct: 0,
+            incorrect: current.incorrect + 1,
+            lastReviewed: new Date().toISOString(),
+          },
+        }
+      }
+    })
+  }
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+    <div className="min-h-[100dvh] bg-background flex flex-col">
+      {/* Mobile status bar spacer */}
+      <div className="safe-area-top bg-background" />
+
+      {/* Main content area - scrollable */}
+      <main className="flex-1 overflow-y-auto">
+        <div className="max-w-lg mx-auto px-4 py-6 pb-24">
+          {view === "landing" && <LandingPage onSelectKanaSet={handleSelectKanaSet} srsData={srsData} />}
+
+          {view === "customization" && (
+            <CustomizationPage
+              config={quizConfig}
+              srsData={srsData}
+              onBack={() => setView("landing")}
+              onUpdateConfig={handleUpdateConfig}
+              onStartQuiz={(quizSet, isHard) => {
+                setCurrentQuizSet(quizSet)
+                setIsTrainingHard(isHard)
+                setView("quiz")
+              }}
+              onReview={() => setView("review")}
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+          )}
+
+          {view === "quiz" && (
+            <QuizPage
+              quizSet={currentQuizSet}
+              config={quizConfig}
+              onUpdateSRS={handleUpdateSRS}
+              onComplete={(correct, total) => {
+                setQuizResults({ correct, total })
+                setView("complete")
+              }}
+            />
+          )}
+
+          {view === "review" && (
+            <ReviewPage
+              config={quizConfig}
+              srsData={srsData}
+              onBack={() => setView("customization")}
+              onShowStroke={setModalChar}
+            />
+          )}
+
+          {view === "complete" && (
+            <QuizCompletePage
+              correct={quizResults.correct}
+              total={quizResults.total}
+              isTrainingHard={isTrainingHard}
+              onBackToCustomization={() => setView("customization")}
+              onRestartQuiz={() => setView("quiz")}
+            />
+          )}
         </div>
       </main>
+
+      {/* Bottom navigation - fixed */}
+      <MobileNav currentView={view} onNavigate={setView} canNavigate={view !== "quiz"} />
+
+      {/* Modals */}
+      <StrokeOrderModal char={modalChar} kanaType={quizConfig.kanaType} onClose={() => setModalChar(null)} />
     </div>
-  );
+  )
 }
